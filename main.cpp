@@ -83,7 +83,7 @@ int __cdecl main(int argc, char **argv) {
 		port.empty() ? DEFAULT_PORT.data() : port.c_str(), &hints, &result);
 	if (iResult != 0) {
 		std::cerr << "getaddrinfo failed: " << iResult << std::endl;
-		WSACleanup();
+		WSACleanup();	
 		return EXIT_FAILURE;
 	}
 
