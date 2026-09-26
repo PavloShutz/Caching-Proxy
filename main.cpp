@@ -25,8 +25,10 @@
 #include <ws2ipdef.h>
 #include <ws2tcpip.h>
 #include <mstcpip.h>
+
 #include <cstdlib>
 #include <cstring>
+#include <format>
 #include <iostream>
 #include <string>
 #include <string_view>
@@ -37,17 +39,13 @@ constexpr int DEFAULT_BUFLEN{ 1 << 13 };
 constexpr std::string_view DEFAULT_PORT{ "48012" };
 constexpr std::string_view HTTP_PORT{ "80" };
 
-PCTSTR address_to_string(ADDRINFO*, PTSTR, size_t);
+PCTSTR address_to_string(ADDRINFO *, PTSTR, size_t);
 
 int __cdecl main(int argc, char **argv) {
-	std::string port{};
-	std::string domainName{};
+	std::string port{ DEFAULT_PORT };
+	std::string origin{};
 
-	// TODO: obtain domain/port from command line arguments
-	domainName = "www.example.com";
-	port = DEFAULT_PORT;
-
-	// Read command line arguments
+	// Parse command line arguments
 	for (int i = 1; i < argc && argv[i] != nullptr; ++i) {
 		if (strcmp(argv[i], "--port") == 0) {
 			if (argv[i + 1] != nullptr) {
@@ -55,6 +53,15 @@ int __cdecl main(int argc, char **argv) {
 			}
 			else {
 				std::cerr << "error: missing port number" << std::endl;
+				return EXIT_FAILURE;
+			}
+		}
+		if (strcmp(argv[i], "--origin") == 0) {
+			if (argv[i + 1] != nullptr) {
+				origin = argv[i + 1];
+			}
+			else {
+				std::cerr << "error: missing origin's url" << std::endl;
 				return EXIT_FAILURE;
 			}
 		}
@@ -91,8 +98,7 @@ int __cdecl main(int argc, char **argv) {
 	hints.ai_flags = AI_CANONNAME;
 
 	// Resolve the server address and port
-	// TODO: Handle --port <number>
-	iResult = GetAddrInfo("www.example.com", // give it a test
+	iResult = GetAddrInfo(origin.c_str(), // give it a test
 												"http",
 												&hints,
 												&result);
@@ -109,7 +115,7 @@ int __cdecl main(int argc, char **argv) {
 	// to find ...
 	for (ptr = result; ptr != NULL; ptr = ptr->ai_next) {
 		ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
-		if (ConnectSocket == INVALID_SOCKET){
+		if (ConnectSocket == INVALID_SOCKET) {
 			std::cerr << "socket failed with error: " << WSAGetLastError() << std::endl;
 			WSACleanup();
 			return EXIT_FAILURE;
@@ -145,12 +151,16 @@ int __cdecl main(int argc, char **argv) {
 
 	int recvbuflen{ DEFAULT_BUFLEN };
 
-	const char *sendbuf{ "GET / HTTP/1.1\r\nHost: www.example.com\r\nConnection: close\r\n\r\n" };
+	std::string sendbuf{ std::format(
+		"GET {} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n",
+		"/",
+		origin)};
+	//const char *sendbuf{ "GET / HTTP/1.1\r\nHost: www.example.com\r\nConnection: close\r\n\r\n" };
 	char recvbuf[DEFAULT_BUFLEN]{};
 
 	iResult = send(ConnectSocket,
-								 sendbuf,
-								 static_cast<int>(strlen(sendbuf)),
+								 sendbuf.c_str(),
+								 static_cast<int>(sendbuf.size()),
 								 0);
 	if (iResult == SOCKET_ERROR) {
 		std::cerr << "send failed with error: " << WSAGetLastError() << std::endl;
@@ -170,8 +180,8 @@ int __cdecl main(int argc, char **argv) {
 		else
 			std::cerr << "recv failed with error: " << WSAGetLastError() << std::endl;
 	} while (iResult > 0);
-	
-	std::cout << recvbuf << '\n';
+
+	std::cout << std::format("response: \n{}", recvbuf);
 
 	iResult = shutdown(ConnectSocket, SD_SEND);
 	if (iResult == SOCKET_ERROR) {
@@ -192,7 +202,7 @@ int __cdecl main(int argc, char **argv) {
 	return EXIT_SUCCESS;
 }
 
-PCTSTR address_to_string(ADDRINFO * info, PTSTR buf, size_t bufSize) {
+PCTSTR address_to_string(ADDRINFO *info, PTSTR buf, size_t bufSize) {
 	switch (info->ai_family) {
 	case AF_UNSPEC:
 		return NULL;
