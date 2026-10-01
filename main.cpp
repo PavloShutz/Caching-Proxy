@@ -68,7 +68,7 @@ int __cdecl main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 
-	ADDRINFO *result{ NULL };
+	ADDRINFO *result{ NULL };	 // linked-list of all possible address information
 	ADDRINFO hints{};
 
 	ZeroMemory(&hints, sizeof(hints));
@@ -76,10 +76,9 @@ int __cdecl main(int argc, char **argv) {
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
-	hints.ai_flags = AI_CANONNAME;
 
 	// Resolve the server address and port
-	iResult = GetAddrInfo(origin.c_str(), // give it a test
+	iResult = GetAddrInfo(origin.c_str(),
 												"http",
 												&hints,
 												&result);
@@ -90,7 +89,7 @@ int __cdecl main(int argc, char **argv) {
 	}
 
 	SOCKET ConnectSocket{ INVALID_SOCKET };
-	ADDRINFO *ptr{ NULL };
+	ADDRINFO *ptr{ NULL }; // current element in the linked-list
 
 	// Process the linked list of addrinfo structures
 	// to find ...
@@ -117,7 +116,7 @@ int __cdecl main(int argc, char **argv) {
 		break;
 	}
 
-	freeaddrinfo(result);
+	freeaddrinfo(result); // free the linked-list
 
 	if (ConnectSocket == INVALID_SOCKET) {
 		std::cerr << "Unable to connect to server!" << std::endl;
