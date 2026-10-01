@@ -49,14 +49,14 @@ int __cdecl main(int argc, char **argv) {
 	parse_cli(argc, argv, port, origin);
 
 	// TODO: Maybe add logging instead of standart I/O
-	std::cout << "Set caching proxy server port to " << port << std::endl;
+	std::cout << std::format("Set caching proxy server port to {}\n", port);
 
 	WSADATA wsaData{};
 	int iResult{};
 
 	iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
 	if (iResult != 0) {
-		std::cerr << "WSAStartup failed: " << iResult << std::endl;
+		std::cerr << std::format("WSAStartup failed: {}\n", iResult) << std::flush;
 		return EXIT_FAILURE;
 	}
 
@@ -83,7 +83,7 @@ int __cdecl main(int argc, char **argv) {
 												&hints,
 												&result);
 	if (iResult != 0) {
-		std::cerr << "getaddrinfo failed: " << iResult << std::endl;
+		std::cerr << std::format("getaddrinfo failed: {}\n", iResult) << std::flush;
 		WSACleanup();
 		return EXIT_FAILURE;
 	}
@@ -96,7 +96,7 @@ int __cdecl main(int argc, char **argv) {
 	for (ptr = result; ptr != NULL; ptr = ptr->ai_next) {
 		ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
 		if (ConnectSocket == INVALID_SOCKET) {
-			std::cerr << "socket failed with error: " << WSAGetLastError() << std::endl;
+			std::cerr << std::format("socket failed with error: {}\n",  WSAGetLastError()) << std::flush;
 			WSACleanup();
 			return EXIT_FAILURE;
 		}
@@ -105,7 +105,7 @@ int __cdecl main(int argc, char **argv) {
 		if (iResult == SOCKET_ERROR) {
 			iResult = closesocket(ConnectSocket);
 			if (iResult == SOCKET_ERROR) {
-				std::cerr << "closesocket failed with error: " << WSAGetLastError() << std::endl;
+				std::cerr << std::format("closesocket failed with error: {}\n", WSAGetLastError()) << std::flush;
 				WSACleanup();
 				return EXIT_FAILURE;
 			}
@@ -126,7 +126,7 @@ int __cdecl main(int argc, char **argv) {
 
 	CHAR ipstrbuf[NI_MAXHOST]{};
 	if (address_to_string(ptr, ipstrbuf)) {
-		std::cout << "origin ip: " << ipstrbuf << std::endl;
+		std::cout << std::format("origin ip: {}\n", ipstrbuf);
 	}
 
 	int recvbuflen{ DEFAULT_BUFLEN };
@@ -143,29 +143,29 @@ int __cdecl main(int argc, char **argv) {
 								 static_cast<int>(sendbuf.size()),
 								 0);
 	if (iResult == SOCKET_ERROR) {
-		std::cerr << "send failed with error: " << WSAGetLastError() << std::endl;
+		std::cerr << std::format("send failed with error: {}\n", WSAGetLastError()) << std::flush;
 		closesocket(ConnectSocket);
 		WSACleanup();
 		return EXIT_FAILURE;
 	}
 
-	std::cout << "bytes sent: " << iResult << '\n';
+	std::cout << std::format("bytes sent: {}\n", iResult);
 
 	do {
 		iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
 		if (iResult > 0)
-			std::cout << "bytes received: " << iResult << '\n';
+			std::cout << std::format("bytes received: {}\n", iResult);
 		else if (iResult == 0)
 			std::cout << "connection closed\n";
 		else
-			std::cerr << "recv failed with error: " << WSAGetLastError() << std::endl;
+			std::cerr << std::format("recv failed with error: {}\n", WSAGetLastError()) << std::flush;
 	} while (iResult > 0);
 
 	std::cout << std::format("response: \n{}", recvbuf);
 
 	iResult = shutdown(ConnectSocket, SD_SEND);
 	if (iResult == SOCKET_ERROR) {
-		std::cerr << "shutdown failed with error: " << WSAGetLastError() << std::endl;
+		std::cerr << std::format("shutdown failed with error: {}\n", WSAGetLastError()) << std::flush;
 		closesocket(ConnectSocket);
 		WSACleanup();
 		return EXIT_FAILURE;
@@ -173,7 +173,7 @@ int __cdecl main(int argc, char **argv) {
 
 	iResult = closesocket(ConnectSocket);
 	if (iResult == SOCKET_ERROR) {
-		std::cerr << "closesocket failed with error: " << WSAGetLastError() << std::endl;
+		std::cerr << std::format("closesocket failed with error: {}\n", WSAGetLastError()) << std::flush;
 		WSACleanup();
 		return EXIT_FAILURE;
 	}
