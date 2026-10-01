@@ -33,39 +33,20 @@
 #include <string>
 #include <string_view>
 
+#include "utility.h"
+
 #pragma comment(lib, "Ws2_32.lib")
 
 constexpr int DEFAULT_BUFLEN{ 1 << 13 };
 constexpr std::string_view DEFAULT_PORT{ "48012" };
 constexpr std::string_view HTTP_PORT{ "80" };
 
-PCTSTR address_to_string(ADDRINFO *, PTSTR, size_t);
-
 int __cdecl main(int argc, char **argv) {
 	std::string port{ DEFAULT_PORT };
 	std::string origin{};
 
 	// Parse command line arguments
-	for (int i = 1; i < argc && argv[i] != nullptr; ++i) {
-		if (strcmp(argv[i], "--port") == 0) {
-			if (argv[i + 1] != nullptr) {
-				port = argv[i + 1];
-			}
-			else {
-				std::cerr << "error: missing port number" << std::endl;
-				return EXIT_FAILURE;
-			}
-		}
-		if (strcmp(argv[i], "--origin") == 0) {
-			if (argv[i + 1] != nullptr) {
-				origin = argv[i + 1];
-			}
-			else {
-				std::cerr << "error: missing origin's url" << std::endl;
-				return EXIT_FAILURE;
-			}
-		}
-	}
+	parse_cli(argc, argv, port, origin);
 
 	// TODO: Maybe add logging instead of standart I/O
 	std::cout << "Set caching proxy server port to " << port << std::endl;
@@ -121,7 +102,7 @@ int __cdecl main(int argc, char **argv) {
 			return EXIT_FAILURE;
 		}
 
-		iResult = connect(ConnectSocket, ptr->ai_addr, ptr->ai_addrlen);
+		iResult = connect(ConnectSocket, ptr->ai_addr, static_cast<int>(ptr->ai_addrlen));
 		if (iResult == SOCKET_ERROR) {
 			iResult = closesocket(ConnectSocket);
 			if (iResult == SOCKET_ERROR) {
@@ -145,7 +126,7 @@ int __cdecl main(int argc, char **argv) {
 	}
 
 	CHAR ipstrbuf[NI_MAXHOST]{};
-	if (address_to_string(ptr, ipstrbuf, sizeof ipstrbuf)) {
+	if (address_to_string(ptr, ipstrbuf)) {
 		std::cout << "origin ip: " << ipstrbuf << std::endl;
 	}
 
@@ -200,25 +181,4 @@ int __cdecl main(int argc, char **argv) {
 
 	WSACleanup();
 	return EXIT_SUCCESS;
-}
-
-PCTSTR address_to_string(ADDRINFO *info, PTSTR buf, size_t bufSize) {
-	switch (info->ai_family) {
-	case AF_UNSPEC:
-		return NULL;
-	case AF_INET:
-		return InetNtop(
-			info->ai_family,
-			&reinterpret_cast<struct sockaddr_in *>(info->ai_addr)->sin_addr,
-			buf,
-			bufSize);
-	case AF_INET6:
-		// TODO
-		return NULL;
-	case AF_NETBIOS:
-		return NULL;
-	default:
-		break;
-	}
-	return NULL;
 }
