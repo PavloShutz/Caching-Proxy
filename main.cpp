@@ -41,7 +41,7 @@ constexpr int DEFAULT_BUFLEN{ 1 << 13 };
 constexpr std::string_view DEFAULT_PORT{ "48012" };
 constexpr std::string_view HTTP_PORT{ "80" };
 
-int __cdecl main(int argc, char **argv) {
+int main(int argc, char **argv) {
 	std::string port{ DEFAULT_PORT };
 	std::string origin{};
 
@@ -67,17 +67,45 @@ int __cdecl main(int argc, char **argv) {
 		WSACleanup();
 		return EXIT_FAILURE;
 	}
-
+	
+	SOCKET ServerSocket{ INVALID_SOCKET };
 	ADDRINFO *result{ NULL };	 // linked-list of all possible address information
 	ADDRINFO hints{};
 
-	ZeroMemory(&hints, sizeof(hints));
+	ZeroMemory(&hints, sizeof hints);
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = IPPROTO_TCP;
+	hints.ai_flags = AI_PASSIVE;
+
+	iResult = getaddrinfo(NULL, port.c_str(), &hints, &result);
+	if (iResult != 0) {
+		std::cerr << std::format("getaddrinfo failed: {}\n", iResult) << std::flush;
+		WSACleanup();
+		return EXIT_FAILURE;
+	}
+
+	ServerSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+	if (ServerSocket == INVALID_SOCKET) {
+		std::cerr << std::format("socket failed: {}\n", WSAGetLastError()) << std::flush;
+		WSACleanup();
+		return EXIT_FAILURE;
+	}
+
+	iResult = bind(ServerSocket, result->ai_addr, static_cast<int>(result->ai_addrlen));
+	if (iResult != 0) {
+		std::cerr << std::format("bind failed: {}\n", iResult) << std::flush;
+		closesocket(ServerSocket);
+		WSACleanup();
+		return EXIT_FAILURE;
+	}
+
+	ZeroMemory(&hints, sizeof hints);
 	// TODO: Handle IPv6 properly
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
 
-	// Resolve the server address and port
 	iResult = GetAddrInfo(origin.c_str(),
 												"http",
 												&hints,
@@ -87,6 +115,7 @@ int __cdecl main(int argc, char **argv) {
 		WSACleanup();
 		return EXIT_FAILURE;
 	}
+
 
 	SOCKET ConnectSocket{ INVALID_SOCKET };
 	ADDRINFO *ptr{ NULL }; // current element in the linked-list
@@ -124,6 +153,8 @@ int __cdecl main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 
+	//iResult = bind(ConnectSocket, )
+
 	CHAR ipstrbuf[NI_MAXHOST]{};
 	if (address_to_string(ptr, ipstrbuf)) {
 		std::cout << std::format("origin ip: {}\n", ipstrbuf);
@@ -136,7 +167,7 @@ int __cdecl main(int argc, char **argv) {
 		"/",
 		origin)};
 	//const char *sendbuf{ "GET / HTTP/1.1\r\nHost: www.example.com\r\nConnection: close\r\n\r\n" };
-	char recvbuf[DEFAULT_BUFLEN]{};
+	char recvbuf[static_cast<std::size_t>(DEFAULT_BUFLEN)]{};
 
 	iResult = send(ConnectSocket,
 								 sendbuf.c_str(),
