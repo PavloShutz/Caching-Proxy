@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
 	parse_cli(argc, argv, port, origin);
 
 	// TODO: Maybe add logging instead of standart I/O
-	std::cout << std::format("Set caching proxy server port to {}\n", port);
+	std::cout << std::format("set caching-proxy server port to {}\n", port);
 
 	WSADATA wsaData{};
 	int iResult{};
@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
 		WSACleanup();
 		return EXIT_FAILURE;
 	}
-	
+
 	SOCKET ServerSocket{ INVALID_SOCKET };
 	ADDRINFO *result{ NULL };	 // linked-list of all possible address information
 	ADDRINFO hints{};
@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
 	for (ptr = result; ptr != NULL; ptr = ptr->ai_next) {
 		ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
 		if (ConnectSocket == INVALID_SOCKET) {
-			std::cerr << std::format("socket failed with error: {}\n",  WSAGetLastError()) << std::flush;
+			std::cerr << std::format("socket failed with error: {}\n", WSAGetLastError()) << std::flush;
 			WSACleanup();
 			return EXIT_FAILURE;
 		}
@@ -165,8 +165,7 @@ int main(int argc, char **argv) {
 	std::string sendbuf{ std::format(
 		"GET {} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n",
 		"/",
-		origin)};
-	//const char *sendbuf{ "GET / HTTP/1.1\r\nHost: www.example.com\r\nConnection: close\r\n\r\n" };
+		origin) };
 	char recvbuf[static_cast<std::size_t>(DEFAULT_BUFLEN)]{};
 
 	iResult = send(ConnectSocket,
@@ -182,17 +181,23 @@ int main(int argc, char **argv) {
 
 	std::cout << std::format("bytes sent: {}\n", iResult);
 
+	std::string response{};
 	do {
 		iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
-		if (iResult > 0)
-			std::cout << std::format("bytes received: {}\n", iResult);
-		else if (iResult == 0)
-			std::cout << "connection closed\n";
-		else
+		if (iResult < 0) {
 			std::cerr << std::format("recv failed with error: {}\n", WSAGetLastError()) << std::flush;
+			break;
+		}
+		else if (iResult == 0) {
+			std::cout << "connection closed\n";
+			break;
+		}
+
+		response.append(recvbuf);
+		std::cout << std::format("bytes received: {}\n", iResult);
 	} while (iResult > 0);
 
-	std::cout << std::format("response: \n{}", recvbuf);
+	std::cout << std::format("response: \n{}", response);
 
 	iResult = shutdown(ConnectSocket, SD_SEND);
 	if (iResult == SOCKET_ERROR) {
